@@ -613,7 +613,7 @@
                         <!-- Kunci Jawaban & Pembahasan -->
                         <div class="grid grid-cols-2 gap-2">
                             <div class="space-y-1">
-                                <label class="block text-xs font-semibold text-slate-600">Kunci Jawaban:</label>
+                                <label class="block text-xs font-semibold text-slate-700">Kunci Jawaban:</label>
                                 <select id="form-kunci" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-800">
                                     <option value="A">Pilihan A / Benar</option>
                                     <option value="B">Pilihan B / Salah</option>
@@ -622,7 +622,7 @@
                                 </select>
                             </div>
                             <div class="space-y-1">
-                                <label class="block text-xs font-semibold text-slate-600">Pembahasan:</label>
+                                <label class="block text-xs font-semibold text-slate-700">Pembahasan:</label>
                                 <input type="text" id="form-pembahasan" placeholder="Mengapa benar..." class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-800">
                             </div>
                         </div>
@@ -686,7 +686,7 @@
                         <div class="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
                             <div class="space-y-0.5">
                                 <p class="text-xs font-bold text-slate-700">Template Resmi CBT v2.0</p>
-                                <p class="text-[10px] text-slate-400">Mendukung soal Benar/Salah & opsi gambar</p>
+                                <p class="text-[10px] text-slate-400 font-['Inter']">Mendukung soal Benar/Salah & opsi gambar</p>
                             </div>
                             <button onclick="downloadExcelTemplate()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2 px-4 rounded-lg transition flex items-center gap-1.5 shadow-sm font-['Inter']">
                                 <i class="fa-solid fa-cloud-arrow-down font-['Inter']"></i> Unduh Template
@@ -766,7 +766,7 @@
                         <h3 class="font-bold text-slate-900 flex items-center gap-2 text-base">
                             <i class="fa-solid fa-chart-line text-blue-600"></i> Rekap Monitoring Nilai Siswa
                         </h3>
-                        <p class="text-xs text-slate-400 mt-0.5">Pantau pengerjaan ujian dari semua jenjang secara real-time.</p>
+                        <p class="text-xs text-slate-400 mt-0.5 font-['Inter']">Pantau pengerjaan ujian dari semua jenjang secara real-time.</p>
                     </div>
                     
                     <button onclick="clearAllSubmissions()" class="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold px-3 py-1.5 rounded-lg transition">
@@ -1932,7 +1932,144 @@
             });
         };
 
+        // --- GURU FORM QUESTION TYPE HANDLER ---
+        window.onFormQuestionTypeChange = function(type) {
+            const wrapper = document.getElementById("form-options-wrapper");
+            const kunciC = document.getElementById("form-kunci-opt-c");
+            const kunciD = document.getElementById("form-kunci-opt-d");
+
+            if (type === "Benar Salah") {
+                // Sembunyikan opsi C & D pada form input
+                document.getElementById("form-wrapper-opt-c").classList.add("hidden");
+                document.getElementById("form-wrapper-opt-d").classList.add("hidden");
+                
+                // Hapus requirement
+                document.getElementById("form-opt-c").removeAttribute("required");
+                document.getElementById("form-opt-d").removeAttribute("required");
+
+                // Atur nilai default opsi Benar Salah
+                document.getElementById("form-opt-a").value = "Benar";
+                document.getElementById("form-opt-b").value = "Salah";
+
+                // Sembunyikan opsi kunci C & D
+                if (kunciC) kunciC.classList.add("hidden");
+                if (kunciD) kunciD.classList.add("hidden");
+
+                // Reset kunci ke A jika saat ini di C atau D
+                const selectKunci = document.getElementById("form-kunci");
+                if (selectKunci.value === "C" || selectKunci.value === "D") {
+                    selectKunci.value = "A";
+                }
+            } else {
+                // Tampilkan kembali opsi C & D
+                document.getElementById("form-wrapper-opt-c").classList.remove("hidden");
+                document.getElementById("form-wrapper-opt-d").classList.remove("hidden");
+                
+                // Tambahkan kembali requirement
+                document.getElementById("form-opt-c").setAttribute("required", "required");
+                document.getElementById("form-opt-d").setAttribute("required", "required");
+
+                // Kosongkan nilai agar guru mengisinya
+                if (document.getElementById("form-opt-a").value === "Benar") document.getElementById("form-opt-a").value = "";
+                if (document.getElementById("form-opt-b").value === "Salah") document.getElementById("form-opt-b").value = "";
+
+                if (kunciC) kunciC.classList.remove("hidden");
+                if (kunciD) kunciD.classList.remove("hidden");
+            }
+        };
+
         // --- GURU / ADMIN MAIN HANDLERS ---
+        window.handleCreateTeacher = async function(e) {
+            e.preventDefault();
+            const name = document.getElementById("guru-nama").value.trim();
+            const username = document.getElementById("guru-username").value.trim().toLowerCase();
+            const pass = document.getElementById("guru-password").value.trim();
+            const subject = document.getElementById("guru-subject").value.trim();
+
+            if (window.teachersList.some(t => t.username === username)) {
+                window.showToast("Username guru tersebut sudah terdaftar!", "warning");
+                return;
+            }
+
+            const payload = {
+                name: name,
+                username: username,
+                password: pass,
+                subject: subject
+            };
+
+            if (window.isFirebaseActive && window.db) {
+                try {
+                    const teachersColRef = collection(window.db, 'artifacts', appId, 'public', 'data', 'teachers');
+                    await addDoc(teachersColRef, payload);
+                    
+                    // Buat juga kerangka data exam_configs mapel kosong di database untuk diampu guru ini
+                    const mapelId = subject.toLowerCase().replace(/\s+/g, '_');
+                    const configDocRef = doc(window.db, 'artifacts', appId, 'public', 'data', 'exam_configs', mapelId);
+                    await setDoc(configDocRef, {
+                        listSoal: [],
+                        examType: "Ulangan Harian",
+                        examTitle: `Ulangan Harian ${subject}`,
+                        examSubject: subject,
+                        kkmPassing: 70,
+                        totalExamSeconds: 15 * 60,
+                        scheduleDate: "2026-05-25",
+                        scheduleStart: "08:00",
+                        scheduleEnd: "17:00",
+                        scheduleBypass: true
+                    });
+
+                    window.showToast(`Akun Guru ${name} sukses ditambahkan!`, "success");
+                } catch (err) {
+                    console.error(err);
+                    window.showToast("Gagal menyimpan akun guru.", "warning");
+                }
+            } else {
+                // Mode Lokal
+                payload.id = "guru-" + Date.now();
+                window.teachersList.push(payload);
+                const mapelId = subject.toLowerCase().replace(/\s+/g, '_');
+                window.allExamConfigs[mapelId] = {
+                    listSoal: [], examType: "Ulangan Harian", examTitle: `Ulangan Harian ${subject}`, examSubject: subject, kkmPassing: 70, totalExamSeconds: 15 * 60, scheduleDate: "2026-05-25", scheduleStart: "08:00", scheduleEnd: "17:00", scheduleBypass: true
+                };
+                window.renderTeachersList();
+                window.populateMapelDropdownSiswa();
+                window.populateMapelFilterAdmin();
+                window.populateMapelFilterMonitoring();
+                window.showToast("Akun guru berhasil ditambahkan (Lokal)!", "success");
+            }
+
+            document.getElementById("form-guru").reset();
+        };
+
+        window.deleteTeacherAccount = function(id, name) {
+            window.showCustomModal(
+                "Hapus Akun Guru?",
+                `Apakah Anda yakin ingin menghapus akun guru <b>${name}</b> secara permanen?`,
+                "fa-solid fa-trash text-rose-600",
+                "bg-rose-100",
+                [
+                    { text: "Batal", class: "bg-slate-100 text-slate-700 hover:bg-slate-200", action: window.closeModal },
+                    { text: "Hapus", class: "bg-rose-600 text-white hover:bg-rose-700", action: async () => {
+                        window.closeModal();
+                        if (window.isFirebaseActive && window.db) {
+                            try {
+                                const teacherDocRef = doc(window.db, 'artifacts', appId, 'public', 'data', 'teachers', id);
+                                await deleteDoc(teacherDocRef);
+                                window.showToast(`Akun ${name} terhapus dari server.`, "success");
+                            } catch (e) {
+                                console.error(e);
+                            }
+                        } else {
+                            window.teachersList = window.teachersList.filter(t => t.id !== id);
+                            window.renderTeachersList();
+                            window.showToast(`Akun ${name} terhapus.`, "success");
+                        }
+                    }}
+                ]
+            );
+        };
+
         window.handleSaveSoal = function(e) {
             e.preventDefault();
             
@@ -2021,34 +2158,6 @@
             }
 
             document.getElementById("form-soal").scrollIntoView({ behavior: 'smooth' });
-        };
-
-        window.deleteTeacherAccount = function(id, name) {
-            window.showCustomModal(
-                "Hapus Akun Guru?",
-                `Apakah Anda yakin ingin menghapus akun guru <b>${name}</b> secara permanen?`,
-                "fa-solid fa-trash text-rose-600",
-                "bg-rose-100",
-                [
-                    { text: "Batal", class: "bg-slate-100 text-slate-700 hover:bg-slate-200", action: window.closeModal },
-                    { text: "Hapus", class: "bg-rose-600 text-white hover:bg-rose-700", action: async () => {
-                        window.closeModal();
-                        if (window.isFirebaseActive && window.db) {
-                            try {
-                                const teacherDocRef = doc(window.db, 'artifacts', appId, 'public', 'data', 'teachers', id);
-                                await deleteDoc(teacherDocRef);
-                                window.showToast(`Akun ${name} terhapus dari server.`, "success");
-                            } catch (e) {
-                                console.error(e);
-                            }
-                        } else {
-                            window.teachersList = window.teachersList.filter(t => t.id !== id);
-                            window.renderTeachersList();
-                            window.showToast(`Akun ${name} terhapus.`, "success");
-                        }
-                    }}
-                ]
-            );
         };
 
         window.deleteSoal = function(idx) {
@@ -2697,173 +2806,6 @@
                     window.renderMathInElement(containerId);
                 }, 10);
             });
-        };
-
-        // --- SISTEM PEMBUATAN EXCEL TEMPLATE ---
-        window.downloadExcelTemplate = function() {
-            const headers = [["Tipe Soal", "Pertanyaan", "Pilihan A", "Pilihan B", "Pilihan C", "Pilihan D", "Gambar Pilihan A", "Gambar Pilihan B", "Gambar Pilihan C", "Gambar Pilihan D", "Kunci Jawaban", "Pembahasan", "Gambar Utama"]];
-            const sampleData = [
-                [
-                    "Pilihan Ganda",
-                    "Berapakah hasil dari fungsi integral berikut: $\\int_0^2 3x^2 \\, dx$ ?",
-                    "4",
-                    "8",
-                    "12",
-                    "16",
-                    "", "", "", "",
-                    "B",
-                    "Hasil integral dari $3x^2$ adalah $x^3$. Dievaluasi dari 0 hingga 2 menjadi $2^3 - 0^3 = 8$.",
-                    ""
-                ],
-                [
-                    "Benar Salah",
-                    "Fungsi kuadrat $f(x) = -x^2 + 4$ memiliki nilai ekstrem maksimum di titik $(0,4)$.",
-                    "Benar",
-                    "Salah",
-                    "",
-                    "",
-                    "", "", "", "",
-                    "A",
-                    "Karena koefisien $x^2$ negatif ($-1$), maka kurva terbuka ke bawah dan memiliki nilai maksimum di puncak $(0, 4)$.",
-                    ""
-                ],
-                [
-                    "Pilihan Ganda",
-                    "Manakah yang merupakan gambar dari molekul air ($H_2O$)?",
-                    "Molekul Linier",
-                    "Molekul Bending (Sudut)",
-                    "Molekul Tetrahedral",
-                    "Molekul Oktahedral",
-                    "https://images.unsplash.com/photo-1548811295-2495d4f26b5d?w=200", "", "", "",
-                    "B",
-                    "Molekul air memiliki geometri bentuk V (bending) dengan sudut sekitar 104.5 derajat.",
-                    ""
-                ]
-            ];
-            
-            const workbook = XLSX.utils.book_new();
-            const worksheet = XLSX.utils.aoa_to_sheet(headers.concat(sampleData));
-            
-            const colWidths = [
-                { wch: 15 }, { wch: 45 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 25 }, { wch: 25 }, { wch: 25 }, { wch: 25 }, { wch: 15 }, { wch: 40 }, { wch: 35 }
-            ];
-            worksheet['!cols'] = colWidths;
-
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Template Soal CBT");
-            XLSX.writeFile(workbook, "Template_Soal_CBT_Pintar.xlsx");
-            window.showToast("Template Excel v2.0 sukses diunduh!", "success");
-        };
-
-        window.handleExcelImport = function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                try {
-                    const data = new Uint8Array(evt.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const firstSheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[firstSheetName];
-                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                    
-                    if (jsonData.length <= 1) {
-                        window.showToast("Berkas Excel kosong!", "warning");
-                        return;
-                    }
-
-                    const rows = jsonData.slice(1);
-                    const parsedSoal = [];
-
-                    for (let i = 0; i < rows.length; i++) {
-                        const row = rows[i];
-                        if (!row || row.length === 0) continue;
-                        
-                        // Ekstraksi data
-                        const rawType = row[0] ? String(row[0]).trim() : "Pilihan Ganda";
-                        const questionType = (rawType.toLowerCase() === "benar salah" || rawType.toLowerCase() === "true false") ? "Benar Salah" : "Pilihan Ganda";
-
-                        const pertanyaan = row[1] ? String(row[1]).trim() : "";
-                        const optA = row[2] ? String(row[2]).trim() : "";
-                        const optB = row[3] ? String(row[3]).trim() : "";
-                        const optC = questionType === "Benar Salah" ? "" : (row[4] ? String(row[4]).trim() : "");
-                        const optD = questionType === "Benar Salah" ? "" : (row[5] ? String(row[5]).trim() : "");
-                        
-                        const optImgA = row[6] ? String(row[6]).trim() : "";
-                        const optImgB = row[7] ? String(row[7]).trim() : "";
-                        const optImgC = questionType === "Benar Salah" ? "" : (row[8] ? String(row[8]).trim() : "");
-                        const optImgD = questionType === "Benar Salah" ? "" : (row[9] ? String(row[9]).trim() : "");
-
-                        const kunciRaw = row[10] ? String(row[10]).trim().toUpperCase() : "";
-                        const pembahasan = row[11] ? String(row[11]).trim() : "Tidak ada pembahasan khusus.";
-                        const gambar = row[12] ? String(row[12]).trim() : "";
-
-                        if (!pertanyaan && !optA && !optB) continue;
-
-                        if (!pertanyaan || !optA || !optB || !kunciRaw) {
-                            window.showToast(`Kesalahan baris ke-${i + 2}: Kolom pertanyaan, pilihan (A-B), atau kunci wajib terisi!`, "warning");
-                            return;
-                        }
-
-                        if (questionType === "Pilihan Ganda" && (!optC || !optD)) {
-                            window.showToast(`Kesalahan baris ke-${i + 2}: Kolom pilihan C & D wajib terisi untuk tipe Pilihan Ganda!`, "warning");
-                            return;
-                        }
-
-                        if (!["A", "B", "C", "D"].includes(kunciRaw)) {
-                            window.showToast(`Kesalahan baris ke-${i + 2}: Kunci wajib diisi huruf A, B, C, atau D!`, "warning");
-                            return;
-                        }
-
-                        parsedSoal.push({
-                            questionType: questionType,
-                            pertanyaan: pertanyaan,
-                            pilihan: { A: optA, B: optB, C: optC, D: optD },
-                            pilihanGambar: { A: optImgA, B: optImgB, C: optImgC, D: optImgD },
-                            kunci: kunciRaw,
-                            pembahasan: pembahasan,
-                            gambar: gambar
-                        });
-                    }
-
-                    if (parsedSoal.length === 0) {
-                        window.showToast("Tidak ada soal valid di berkas Excel.", "warning");
-                        return;
-                    }
-
-                    window.showCustomModal(
-                        "Konfirmasi Impor Excel",
-                        `Ditemukan sebanyak <b>${parsedSoal.length} Soal</b> siap impor dari Excel. Silakan tentukan metode integrasi:`,
-                        "fa-solid fa-file-excel text-emerald-600",
-                        "bg-emerald-100",
-                        [
-                            { 
-                                text: "Gabungkan (Merge)", 
-                                class: "bg-slate-100 text-slate-700 hover:bg-slate-200", 
-                                action: () => {
-                                    window.listSoal = window.listSoal.concat(parsedSoal);
-                                    window.finalizeImportProcess();
-                                }
-                            },
-                            { 
-                                text: "Tumpuk Semua (Replace)", 
-                                class: "bg-rose-600 text-white hover:bg-rose-700", 
-                                action: () => {
-                                    window.listSoal = parsedSoal;
-                                    window.finalizeImportProcess();
-                                }
-                            }
-                        ]
-                    );
-
-                } catch (err) {
-                    console.error(err);
-                    window.showToast("Gagal memproses file Excel!", "warning");
-                }
-                
-                document.getElementById("import-excel-selector").value = "";
-            };
-            reader.readAsArrayBuffer(file);
         };
 
         // --- DEKLARASI GLOBLAL LAINNYA ---
