@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CBT Pintar Online - SMP YPKKP</title>
+    <title>CBT Pintar Online - Versi Stabil</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -41,10 +41,6 @@
                 <div>
                     <p class="font-bold text-lg" id="display-nama"></p>
                     <p class="text-sm text-gray-500" id="display-nis"></p>
-                </div>
-                <div class="text-right">
-                    <p class="text-sm text-gray-500">Sisa Waktu</p>
-                    <p class="text-xl font-bold text-red-500" id="timer">--:--</p>
                 </div>
             </div>
 
@@ -103,7 +99,7 @@
                             </thead>
                             <tbody id="tabel-hasil">
                                 <tr>
-                                    <td colspan="3" class="text-center p-4 text-gray-400">Belum ada siswa yang mengumpulkan.</td>
+                                    <td colspan="3" class="text-center p-4 text-gray-400">Belum ada data.</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -115,34 +111,29 @@
     </main>
 
     <script>
-        // 1. KONFIGURASI SUPABASE (GANTI DENGAN KUNCI PROYEK ANDA)
+        // ⚠️ MASUKKAN DATA SUPABASE ANDA DI SINI
         const SUPABASE_URL = "https://kxbciabquudwhnqrtpzv.supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4YmNpYWJxdXVkd2hucXJ0cHp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4NTkwMTksImV4cCI6MjA5NTQzNTAxOX0.qtVwjmUMuIAzLooN7eGi9bgBjtfY6fKzcp_VzNlCGJs";
 
-        // Inisialisasi koneksi
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Inisialisasi klien Supabase
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // Variabel Aplikasi Global (Sudah Diperbaiki)
         let dataSoalGlobal = [];
         let dataSiswaSaatIni = { nama: "", nis: "" };
 
-        // Fungsi Navigasi Antar Halaman
         function pindahHalaman(pageId) {
             document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
             document.getElementById(`page-${pageId}`).classList.remove('hidden');
-            
-            if(pageId === 'guru-dashboard') {
-                muatHasilSiswa();
-            }
+            if(pageId === 'guru-dashboard') muatHasilSiswa();
         }
 
-        // ================= LOGIKA KHUSUS GURU =================
+        // FUNGSI GURU: TAMBAH SOAL
         async function tambahSoal() {
-            const pertanyaan = document.getElementById('input-soal').value;
-            const a = document.getElementById('pilihan-a').value;
-            const b = document.getElementById('pilihan-b').value;
-            const c = document.getElementById('pilihan-c').value;
-            const d = document.getElementById('pilihan-d').value;
+            const pertanyaan = document.getElementById('input-soal').value.trim();
+            const a = document.getElementById('pilihan-a').value.trim();
+            const b = document.getElementById('pilihan-b').value.trim();
+            const c = document.getElementById('pilihan-c').value.trim();
+            const d = document.getElementById('pilihan-d').value.trim();
             const kunci = document.getElementById('kunci-jawaban').value;
 
             if(!pertanyaan || !a || !b || !c || !d) {
@@ -150,16 +141,21 @@
                 return;
             }
 
-            // Simpan ke Tabel `soal_ujian` Supabase
             const { error } = await supabase
                 .from('soal_ujian')
-                .insert([{ pertanyaan, pilihan_a: a, pilihan_b: b, pilihan_c: c, pilihan_d: d, kunci_jawaban: kunci }]);
+                .insert([{ 
+                    pertanyaan: pertanyaan, 
+                    pilihan_a: a, 
+                    pilihan_b: b, 
+                    pilihan_c: c, 
+                    pilihan_d: d, 
+                    kunci_jawaban: kunci 
+                }]);
 
             if (error) {
-                alert("Gagal menyimpan ke cloud: " + error.message);
+                alert("🚨 GAGAL MENGIRIM DATA!\n\nPesan Error: " + error.message + "\n\nSolusi: Pastikan nama tabel di Supabase adalah 'soal_ujian' dan RLS sudah dalam posisi DISABLED.");
             } else {
-                alert("Soal berhasil ditambahkan ke database cloud!");
-                // Reset Form
+                alert("✅ Sukses! Soal berhasil disimpan di database cloud.");
                 document.getElementById('input-soal').value = "";
                 document.getElementById('pilihan-a').value = "";
                 document.getElementById('pilihan-b').value = "";
@@ -168,39 +164,38 @@
             }
         }
 
+        // FUNGSI GURU: LIHAT HASIL NILAI
         async function muatHasilSiswa() {
             const tbody = document.getElementById('tabel-hasil');
-            tbody.innerHTML = `<tr><td colspan="3" class="text-center p-2">Memuat data...</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="3" class="text-center p-2">Memuat data dari cloud...</td></tr>`;
 
-            // Tarik data dari Tabel `hasil_ujian` Supabase
             const { data, error } = await supabase
                 .from('hasil_ujian')
                 .select('*')
-                .order('waktu_selesai', { ascending: false });
+                .order('id', { ascending: false });
 
             if (error) {
-                tbody.innerHTML = `<tr><td colspan="3" class="text-center text-red-500 p-2">Error: ${error.message}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="3" class="text-center text-red-500 p-2">Gagal memuat: ${error.message}</td></tr>`;
                 return;
             }
 
-            if (data.length === 0) {
+            if (!data || data.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="3" class="text-center p-4 text-gray-400">Belum ada siswa yang mengumpulkan.</td></tr>`;
                 return;
             }
 
             tbody.innerHTML = "";
             data.forEach(hasil => {
-                const row = `<tr class="border-b hover:bg-gray-100">
-                    <td class="p-2 font-medium">${hasil.nama_siswa}</td>
-                    <td class="p-2">${hasil.nomor_induk}</td>
-                    <td class="p-2 text-center font-bold text-blue-600">${hasil.nilai}</td>
-                </tr>`;
-                tbody.innerHTML += row;
+                tbody.innerHTML += `
+                    <tr class="border-b hover:bg-gray-100">
+                        <td class="p-2 font-medium">${hasil.nama_siswa}</td>
+                        <td class="p-2">${hasil.nomor_induk}</td>
+                        <td class="p-2 text-center font-bold text-blue-600">${hasil.nilai}</td>
+                    </tr>`;
             });
         }
 
-
-        // ================= LOGIKA KHUSUS SISWA =================
+        // FUNGSI SISWA: MULAI UJIAN
         async function mulaiUjian() {
             const nama = document.getElementById('siswa-nama').value.trim();
             const nis = document.getElementById('siswa-nis').value.trim();
@@ -212,29 +207,25 @@
 
             dataSiswaSaatIni = { nama, nis };
 
-            // Ambil seluruh kumpulan soal dari Supabase
             const { data, error } = await supabase
                 .from('soal_ujian')
                 .select('*')
                 .order('id', { ascending: true });
 
             if (error) {
-                alert("Gagal memuat soal ujian dari Cloud: " + error.message);
+                alert("🚨 ERROR MEMUAT SOAL:\n\n" + error.message);
                 return;
             }
 
-            if (data.length === 0) {
-                alert("Ujian belum siap. Guru belum memasukkan soal sama sekali di database!");
+            if (!data || data.length === 0) {
+                alert("Ujian belum siap! Guru belum mengisi soal di tabel 'soal_ujian'.");
                 return;
             }
 
             dataSoalGlobal = data;
-            
-            // Set Identitas di Header Lembar Ujian
             document.getElementById('display-nama').innerText = nama;
             document.getElementById('display-nis').innerText = "NIS: " + nis;
 
-            // Render komponen soal ke layar
             renderSoalUjian();
             pindahHalaman('siswa-ujian');
         }
@@ -244,7 +235,7 @@
             container.innerHTML = "";
 
             dataSoalGlobal.forEach((soal, indeks) => {
-                const HTMLSoal = `
+                container.innerHTML += `
                     <div class="p-4 border rounded-lg bg-gray-50 space-y-2 shadow-xs">
                         <p class="font-semibold text-md">${indeks + 1}. ${soal.pertanyaan}</p>
                         <div class="grid grid-cols-1 gap-2 pl-4">
@@ -265,52 +256,35 @@
                                 <span><strong>D.</strong> ${soal.pilihan_d}</span>
                             </label>
                         </div>
-                    </div>
-                `;
-                container.innerHTML += HTMLSoal;
+                    </div>`;
             });
         }
 
+        // FUNGSI SISWA: SELESAI UJIAN
         async function selesaiUjian() {
-            if (!confirm("Apakah Anda yakin telah menyelesaikan semua soal dan ingin mengumpulkan?")) {
-                return;
-            }
+            if (!confirm("Apakah Anda yakin ingin mengumpulkan jawaban?")) return;
 
             let jumlahBenar = 0;
-            let logJawabanSiswa = {};
-
-            // Hitung Lembar Jawaban Otomatis
             dataSoalGlobal.forEach(soal => {
-                const pilihanTerpilih = document.querySelector(`input[name="soal-${soal.id}"]:checked`);
-                const jawabanSiswa = pilihanTerpilih ? pilihanTerpilih.value : "-";
-                
-                logJawabanSiswa[soal.id] = jawabanSiswa;
-
-                if (jawabanSiswa === soal.kunci_jawaban) {
-                    jumlahBenar++;
-                }
+                const terpilih = document.querySelector(`input[name="soal-${soal.id}"]:checked`);
+                const jawaban = terpilih ? terpilih.value : "-";
+                if (jawaban === soal.kunci_jawaban) jumlahBenar++;
             });
 
-            // Kalkulasi Rumus Nilai Standar (Skala 0 - 100)
             const nilaiAkhir = Math.round((jumlahBenar / dataSoalGlobal.length) * 100);
 
-            // Simpan Hasil Ujian ke Tabel `hasil_ujian` Supabase Cloud
             const { error } = await supabase
                 .from('hasil_ujian')
-                .insert([
-                    {
-                        nama_siswa: dataSiswaSaatIni.nama,
-                        nomor_induk: dataSiswaSaatIni.nis,
-                        nilai: nilaiAkhir,
-                        jawaban_siswa: logJawabanSiswa
-                    }
-                ]);
+                .insert([{
+                    nama_siswa: dataSiswaSaatIni.nama,
+                    nomor_induk: dataSiswaSaatIni.nis,
+                    nilai: nilaiAkhir
+                }]);
 
             if (error) {
-                alert("Gagal mengirim lembar jawaban ke server: " + error.message);
+                alert("🚨 GAGAL MENGIRIM JAWABAN SISWA:\n\n" + error.message);
             } else {
-                alert(`Ujian selesai! Jawaban Anda terkirim secara aman.\nNilai Anda: ${nilaiAkhir}`);
-                // Balikkan halaman ke form awal login siswa
+                alert(`✅ Ujian Berhasil Dikirim!\nNilai Anda: ${nilaiAkhir}`);
                 document.getElementById('siswa-nama').value = "";
                 document.getElementById('siswa-nis').value = "";
                 pindahHalaman('siswa-login');
